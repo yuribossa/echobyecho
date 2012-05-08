@@ -1,0 +1,17 @@
+application: echobyecho
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /(.*)\.appcache
+  static_files: \1.appcache
+  upload: (.*)\.appcache
+  mime_type: text/cache-manifest
+- url: /images
+  static_dir: images
+- url: /javascripts
+  static_dir: javascripts
+- url: /
+  static_files: index.html
+  upload: index\.html

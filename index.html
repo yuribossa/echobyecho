@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html manifest="index.appcache">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>echo by echo</title>
+<link rel="apple-touch-icon-precomposed" href="/images/icon.png" />
+<script type="text/javascript" src="javascripts/underscore-min.js"></script>
+<script type="text/javascript" src="javascripts/jquery-1.7.2.min.js"></script>
+<script type="text/javascript">
+$(function(){
+    var imageWidth = 320;
+    var currentDdx = 0;
+    var previousDdx = 0;
+    var moveImages = [];
+    var moveImagesMaxLength = 3;
+    var images = {};
+    var imagesMaxIndex = 16;
+    var imagesName = 'img';
+    var ddx1 = 6;
+    var ddx2 = 4;
+    var ddx3 = 1;
+    function moveRight(thr) {
+        if (moveImages.length == 0) {
+            for (var i=1; i<=imagesMaxIndex; i++) {
+                if (images[imagesName + i].x == 0) {
+                    moveImages.push(imagesName + i);
+                    break;
+                }
+            }
+        } else if (images[_.last(moveImages)].x > thr) {
+            var id = _.last(moveImages);
+            var num = parseInt(id.substr(imagesName.length)) + 1;
+            if (num <= imagesMaxIndex) {
+                moveImages.push(imagesName + num);
+            }
+        }
+    }
+    function moveLeft(thr) {
+        if (moveImages.length == 0) {
+            for (var i=imagesMaxIndex; i>=1; i--) {
+                if (images[imagesName + i].x == imageWidth) {
+                    moveImages.push(imagesName + i);
+                    break;
+                }
+            }
+        } else if (images[_.first(moveImages)].x < thr) {
+            var id = _.first(moveImages);
+            var num = parseInt(id.substr(imagesName.length)) - 1;
+            if (num >= 1) {
+                moveImages.unshift(imagesName + num);
+            }
+        }
+    }
+    window.addEventListener("devicemotion", function(evt) {
+        var acg = evt.accelerationIncludingGravity;
+        currentDdx = acg.x;
+    });
+
+    setInterval(function() {
+        if (previousDdx < 0 && currentDdx > 0) {
+            if (moveImages.length == 0) {
+                moveImages.push(imagesName + 1);
+            }
+        } else if (previousDdx > 0 && currentDdx < 0) {
+            if (moveImages.length == 0) {
+                moveImages.push(imagesName + imagesMaxIndex);
+            }
+        }
+        if (moveImages.length < moveImagesMaxLength) {
+            if (currentDdx > ddx1) {
+                moveRight(120)
+            } else if (currentDdx < -ddx1) {
+                moveLeft(200)
+            } else if (currentDdx > ddx2) {
+                moveRight(200)
+            } else if (currentDdx < -ddx2) {
+                moveLeft(120)
+            } else if (currentDdx > ddx3) {
+                moveRight(320)
+            } else if (currentDdx < -ddx3) {
+                moveLeft(0)
+            }
+        }
+        if (currentDdx > ddx1 || currentDdx < -ddx1) {
+            _.each(moveImages, function(id) {
+                images[id].dx = currentDdx * 1.8;
+            });
+        } else if (currentDdx > ddx2 || currentDdx < -ddx2) {
+            _.each(moveImages, function(id) {
+                images[id].dx = currentDdx * 1.4;
+            });
+        } else if (currentDdx > ddx3) {
+            _.each(moveImages, function(id) {
+                if (id == _.first(moveImages)) {
+                    images[id].dx = currentDdx * 1.0;
+                } else {
+                    images[id].dx = 0;
+                }
+            });
+        } else if (currentDdx < -ddx3) {
+            _.each(moveImages, function(id) {
+                if (id == _.last(moveImages)) {
+                    images[id].dx = currentDdx * 1.0;
+                } else {
+                    images[id].dx = 0;
+                }
+            });
+        } else {
+            _.each(moveImages, function(id) {
+                images[id].dx = 0;
+            });
+        }
+        previousDdx = currentDdx;
+
+        var moveFlg = false;
+        _.each(moveImages, function(id) {
+            if (images[id].dx != 0) {
+                images[id].x += images[id].dx;
+                if (images[id].x < 0) {
+                    images[id].x = 0;
+                    images[id].dx = 0;
+                } else if (images[id].x > imageWidth) {
+                    images[id].x = imageWidth;
+                    images[id].dx = 0;
+                }
+                $('#' + id).css('left', images[id].x);
+                moveFlg = true;
+            }
+        });
+        if (moveFlg) {
+            moveImages = _.filter(moveImages, function(id) { return images[id].x != 0 && images[id].x != imageWidth; });
+        }
+    }, 40);
+
+    // タッチ系イベントの無効化
+    $(document).bind('touchstart', function(event) {event.preventDefault();});
+    $(document).bind('touchmove', function(event) {event.preventDefault();});
+    $(document).bind('touchend', function(event) {event.preventDefault();});
+
+    // 画像ロード
+    var loadCount = 0;
+    $('#loading>h4').html(Math.floor(loadCount / imagesMaxIndex * 100) + '%');
+    for (var i=1; i<=imagesMaxIndex; i++) {
+        $('#' + imagesName + i).load(function() {
+            loadCount++;
+            $('#loading>h4').html(Math.floor(loadCount / imagesMaxIndex * 100) + '%');
+            if (loadCount == imagesMaxIndex) {
+                $('#loading').hide();
+                $(imagesName).show();
+            }
+        });
+    }
+    for (var i=1; i<=imagesMaxIndex; i++) {
+        images[imagesName + i] = {
+            id: imagesName + i
+            , x: 0
+            , dx: 0
+        };
+    }
+    _.each(images, function(img, id) {
+        $('#' + id).css('z-index', 50 - id.substr(3));
+    });
+
+    // 1度目にアクセスしたときのInfo表示
+    if (!localStorage['firstVisit'] || localStorage['firstVisit'] == 'true') {
+        if (window.confirm('この画面を「ホーム画面に追加」して、そのアイコンをクリックしてください。')) {
+            localStorage['firstVisit'] = 'false';
+        } else {
+            localStorage['firstVisit'] = 'true';
+        }
+    }
+});
+</script>
+<style type="text/css">
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    body {
+        width: 100%;
+        overflow: hidden;
+    }
+    img {
+        vertical-align: bottom;
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: none;
+    }
+    #loading {
+        position: absolute;
+        top: 180px;
+        width: 120px;
+        margin-left: 125px;
+    }
+</style>
+</head>
+<body>
+    <div id="loading">
+        <h3>Loading...</h3>
+        <h4></h4>
+    </div>
+    <img id="img1" src="/images/nishiogi/01.jpg" width="320"/>
+    <img id="img2" src="/images/nishiogi/02.jpg" width="320"/>
+    <img id="img3" src="/images/nishiogi/03.jpg" width="320"/>
+    <img id="img4" src="/images/nishiogi/04.jpg" width="320"/>
+    <img id="img5" src="/images/nishiogi/05.jpg" width="320"/>
+    <img id="img6" src="/images/nishiogi/06.jpg" width="320"/>
+    <img id="img7" src="/images/nishiogi/07.jpg" width="320"/>
+    <img id="img8" src="/images/nishiogi/08.jpg" width="320"/>
+    <img id="img9" src="/images/nishiogi/09.jpg" width="320"/>
+    <img id="img10" src="/images/nishiogi/10.jpg" width="320"/>
+    <img id="img11" src="/images/nishiogi/11.jpg" width="320"/>
+    <img id="img12" src="/images/nishiogi/12.jpg" width="320"/>
+    <img id="img13" src="/images/nishiogi/13.jpg" width="320"/>
+    <img id="img14" src="/images/nishiogi/14.jpg" width="320"/>
+    <img id="img15" src="/images/nishiogi/15.jpg" width="320"/>
+    <img id="img16" src="/images/nishiogi/16.jpg" width="320"/>
+</body>
+</html>
